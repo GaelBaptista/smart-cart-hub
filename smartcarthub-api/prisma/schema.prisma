@@ -1,0 +1,133 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+//
+// ============================================
+// TABELAS DE USUÁRIOS E LOJAS
+// ============================================
+//
+
+// Gerente, funcionário, etc.
+model User {
+  id            Int          @id @default(autoincrement())
+  name          String
+  email         String       @unique
+  password      String
+  role          Role         @default(GERENTE)
+  supermarket   Supermarket? @relation(fields: [supermarketId], references: [id])
+  supermarketId Int?
+  createdAt     DateTime     @default(now())
+}
+
+// Permite expansão de perfis (ex: REPOSITOR, CAIXA)
+enum Role {
+  GERENTE
+  CLIENTE
+}
+
+
+// Cada loja é um supermercado (com seções e produtos próprios)
+model Supermarket {
+  id        Int       @id @default(autoincrement())
+  name      String
+  address   String?
+  sections  Section[]
+  users     User[]
+  carts     Cart[]
+  createdAt DateTime  @default(now())
+}
+
+//
+// ============================================
+// TABELAS DE PRODUTOS E SEÇÕES
+// ============================================
+//
+
+// Seção (ex: Padaria, Hortifrúti, Laticínios)
+model Section {
+  id             Int          @id @default(autoincrement())
+  name           String
+  position       Int?         // opcional, pode ser nulo
+  supermarketId  Int
+  supermarket    Supermarket  @relation(fields: [supermarketId], references: [id])
+  products       Product[]
+  createdAt      DateTime     @default(now())
+}
+
+
+
+
+// Produto
+model Product {
+  id          Int        @id @default(autoincrement())
+  name        String
+  brand       String?
+  section     Section    @relation(fields: [sectionId], references: [id])
+  sectionId   Int
+  stock       Int        @default(0)
+  isAvailable Boolean    @default(true)
+  cartItems   CartItem[]
+  ruptures    Rupture[]
+  createdAt   DateTime   @default(now())
+}
+
+
+//
+// ============================================
+// TABELAS DE CARRINHO E INTERAÇÃO DO CLIENTE
+// ============================================
+//
+
+model Cart {
+  id           Int         @id @default(autoincrement())
+  uuid         String      @unique
+  isActive     Boolean     @default(true)
+  finalizedAt  DateTime?   // 👈 quando o cliente finaliza
+  supermarket  Supermarket @relation(fields: [supermarketId], references: [id])
+  supermarketId Int
+  items        CartItem[]
+  ruptures     Rupture[]
+  createdAt    DateTime    @default(now())
+}
+
+model CartItem {
+  id             Int      @id @default(autoincrement())
+  product        Product  @relation(fields: [productId], references: [id])
+  productId      Int
+  cart           Cart     @relation(fields: [cartId], references: [id])
+  cartId         Int
+  quantity       Int      @default(1)
+  observedPrice  Float?   // 👈 preço visto pelo cliente
+  subtotal       Float    @default(0)
+  createdAt      DateTime @default(now())
+}
+
+
+
+
+// Ruptura comunitária (cliente marcou “não encontrei”)
+model Rupture {
+  id           Int       @id @default(autoincrement())
+  cartId       Int
+  productId    Int?
+  note         String?
+  productName  String?   // 👈 adiciona este campo
+  createdAt    DateTime  @default(now())
+
+  cart     Cart     @relation(fields: [cartId], references: [id])
+  product  Product? @relation(fields: [productId], references: [id])
+}
+
+
